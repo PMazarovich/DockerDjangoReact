@@ -1,54 +1,112 @@
 # Taski
-Приложение для планирования своих задач.
-Разъяснение по статике.
-Ngnix может самостоятельно раздавать статические файлы.
-location / {
-alias /staticfiles/;
-index index.html;
-}
-Это значит, что для дюбого запроса, который не /api и не /admin, попытаться возвратить файл по пути GET запроса пользователя
-Пример:
-http://localhost:8000/api/ - этот запрос пришел в nginx контейнер.
-/api распределился на /backend адрес -> proxy_pass http://backend:8000/api/;
-Этот get запрос вернул некий html файл, который включает в себя, в частности,
-<script src="/static/rest_framework/js/jquery-3.5.1.min.js"></script>
-<script src="/static/rest_framework/js/ajax-form.js"></script>
-<script src="/static/rest_framework/js/csrf.js"></script>
-<script src="/static/rest_framework/js/bootstrap.min.js"></script>
-<script src="/static/rest_framework/js/prettify-min.js"></script>
-<script src="/static/rest_framework/js/default.js"></script>
 
-Это заставит браузер запросить все эти файлы по таким адресам: 
-http://localhost:8000/static/rest_framework/css/bootstrap.min.css
-http://localhost:8000/static/rest_framework/css/bootstrap-tweaks.css
-http://localhost:8000/static/rest_framework/js/default.js
-И тд.
-Они тут же начнут свое исполнение и могут дососать с сервера еще какие-то файлы.
-Эти запросы, к примеру http://localhost:8000/static/rest_framework/css/bootstrap.min.css никак не отражены в ngnix.conf
-По умолчанию, они перенаправляются в блок
+Taski — это приложение для планирования задач. Оно объединяет фронтенд (React) и бэкенд (Django) с использованием Nginx для обработки статических файлов.
+
+## Особенности
+
+- **Frontend**: Собранный React-приложение, оптимизированное для работы через Nginx.
+- **Backend**: Django, включая сбор и раздачу статических файлов.
+- **Gateway**: Отвечает за маршрутизацию запросов и раздачу статики.
+
+## Конфигурация Nginx
+
+```nginx
 location / {
-    alias /staticfiles/;  <-- искать в первую очередь в этой папке
-    index index.html;   <-- если в папке ничего не нашли, из этой же папки возвращаем index.html
+    alias /staticfiles/;
+    index index.html;
 }
-Т.е. ngnix попробует в папке staticfiles найти этот путь /static/rest_framework/css/bootstrap.min.css и отдать его.
-Если его нет, он отдаст файл index.html, который уже является частью SPA.
-После отдачи index.html, начнется засасывание всех файлов SPA
-Структура volume ngnix.conf:
--- Это всё от SPA React
-|-- asset-manifest.json
-|-- favicon.ico
-|-- index.html
-|-- logo192.png
-|-- logo512.png
-|-- manifest.json
-|-- robots.txt
--- Это - статика Django
+```
+
+### Пояснение
+
+- **Маршруты API и админки**: Запросы, начинающиеся с `/api` или `/admin`, перенаправляются к бэкенду через `proxy_pass`.
+
+  ```nginx
+  location /api {
+      proxy_pass http://backend:8000/api/;
+  }
+
+  location /admin {
+      proxy_pass http://backend:8000/admin/;
+  }
+  ```
+
+- **Статические файлы**: Nginx ищет файлы по пути, указанному в запросе пользователя. Если файл не найден, возвращается `index.html`.
+
+  Пример:
+    - Запрос: `http://localhost:8000/static/rest_framework/css/bootstrap.min.css`
+    - Nginx ищет файл по пути `/staticfiles/static/rest_framework/css/bootstrap.min.css`.
+    - Если файл отсутствует, возвращается `index.html`.
+
+## Структура каталогов
+
+```plaintext
+/staticfiles/
+|-- asset-manifest.json <-- cтатитка react 
+|-- favicon.ico         <-- cтатитка react 
+|-- index.html          <-- cтатитка react 
+|-- logo192.png         <-- cтатитка react 
+|-- logo512.png         <-- cтатитка react 
+|-- manifest.json       <-- cтатитка react 
+|-- robots.txt          <-- cтатитка react 
 `-- static
-    |-- admin
-    |-- css
-    |-- js
-    `-- rest_framework
-----------
+    |-- admin/  <-- cтатитка admin панели drf 
+    |-- css/    <-- cтатитка react 
+    |-- js/     <-- cтатитка react
+    |-- rest_framework/ <-- cтатитка drf
+```
 
-Предварительно, естественно, нужно собрать frontend (npm run build) и положить в папку /staticfiles/ nginx
-И собрать бэкэнд (python manage.py collectstatic) и положить в папку staticfiles/static/ nginx
+## Сборка проекта
+Все опресции сборки происходят из докерфайлов и переносятся в соответствующий volume /static
+См. docker-compose и dockerfiles
+1. **Собрать фронтенд**:
+
+   ```bash
+   npm run build
+   ```
+   Переместить содержимое папки `build/` в `/staticfiles/`.
+
+2. **Собрать статику для бэкенда**:
+
+   ```bash
+   python manage.py collectstatic
+   ```
+    - Переместить файлы в `/staticfiles/static/`.
+    - Убедиться, что:
+        - В `settings.py` указан:
+          ```python
+          STATIC_URL = 'static'
+          ```
+        - Таким образом будет создан префикс `/static/` для всех файлов, необходимых для Django.
+        - Все файлы будут искаться в соответствующей папке в nginx контейнере.
+3. **Настроить Nginx**: Убедитесь, что конфигурация Nginx указывает на правильные каталоги.
+
+## Пример работы
+
+- Запрос: `http://localhost:8000/api/`
+    - Приходит в контейнер nginx на порт 8000
+    - Перенаправляется на `http://backend:8000/api/`.
+    - Бэкенд возвращает HTML-файл, который включает:
+
+      ```html
+      <script src="/static/rest_framework/js/jquery-3.5.1.min.js"></script>
+      <script src="/static/rest_framework/js/ajax-form.js"></script>
+      <script src="/static/rest_framework/js/csrf.js"></script>
+      <script src="/static/rest_framework/js/bootstrap.min.js"></script>
+      <script src="/static/rest_framework/js/prettify-min.js"></script>
+      <script src="/static/rest_framework/js/default.js"></script>
+      ```
+
+- Эти файлы загружаются через Nginx из `/staticfiles/static/rest_framework/`. Если файлы отсутствуют, возвращается `index.html` для обработки SPA.
+
+- Запрос: `http://localhost:8000/`
+    - Приходит в контейнер nginx на порт 8000
+    - Перенаправляется на путь '/' внутри nginx.
+    - Nginx отдает index.html, который инициирует загрузку из клиентского браузера этих файлов:
+
+      ```html
+      <script defer="defer" src="/static/js/main.c77806b7.js"></script>
+      <link href="/static/css/main.f03fe314.css" rel="stylesheet">
+      ```
+
+- Эти файлы загружаются через Nginx из `/staticfiles/static/`. 
