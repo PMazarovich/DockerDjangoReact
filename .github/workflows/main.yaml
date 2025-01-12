@@ -195,3 +195,30 @@ jobs:
             sudo docker compose -f docker-compose.production.yaml exec backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yaml exec backend python manage.py collectstatic
             sudo docker compose -f docker-compose.production.yaml exec backend cp -r /app/collected_static/. /backend_static/static/
+
+# note: вместо этих migrate, collectstatic и cp можно было бы создаьб entrypoint.sh и запустить его прямо изнутри контейнера
+#  FROM python:3.9-slim
+#  # Установка зависимостей
+#  WORKDIR /app
+#  COPY . /app
+#  RUN pip install -r requirements.txt
+#  # Копирование скрипта entrypoint.sh
+#  COPY entrypoint.sh /entrypoint.sh
+#  RUN chmod +x /entrypoint.sh  # Делаем скрипт исполняемым
+#  # Указываем скрипт как точку входа
+#  ENTRYPOINT ["/entrypoint.sh"]
+
+#!/bin/bash
+#  set -e  # Если команда завершится с ошибкой — скрипт остановится
+#
+#  # Выполнение миграций базы данных
+#  echo "Running database migrations..."
+#  python manage.py migrate
+#
+#  # Сбор статических файлов
+#  echo "Collecting static files..."
+#  python manage.py collectstatic --noinput
+#
+#  # Запуск приложения (Django Development Server или Gunicorn)
+#  echo "Starting Django application..."
+#  exec gunicorn myproject.wsgi:application --bind 0.0.0.0:8000 --workers 3
