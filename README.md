@@ -116,3 +116,113 @@ location / {
 См. в .github/workflows/main.yaml
 
 Обратить внимание docker compose и Dockerfile для обоих сервисов. Так можно понять, что происходит в main.yaml и почему.
+
+# Как настроить nginx, доменное имя и сертификат на удаленной машине?
+## **Установка и запуск Nginx**
+
+1. **Установите Nginx:**
+   ```bash
+   sudo apt update
+   sudo apt install nginx -y
+   ```
+
+2. **Запустите службу Nginx:**
+   ```bash
+   sudo systemctl start nginx
+   ```
+
+3. **Откройте доступ для Nginx и SSH:**
+   ```bash
+   sudo ufw allow 'Nginx Full'
+   sudo ufw allow OpenSSH
+   ```
+
+4. **Включите файервол:**
+   ```bash
+   sudo ufw enable
+   ```
+
+5. **Проверьте статус:**
+   ```bash
+   sudo ufw status
+   ```
+
+---
+
+## **Настройка конфигурации Nginx**
+
+1. **Откройте файл конфигурации:**
+   ```bash
+   sudo nano /etc/nginx/sites-enabled/default
+   ```
+
+2. **Добавьте конфигурацию:**
+   ```nginx
+   server {
+       listen 80;
+       server_name example.com www.example.com;
+
+       root /var/www/html;
+       index index.html index.htm;
+
+       location / {
+           try_files $uri $uri/ =404;
+       }
+   }
+   ```
+   Подробнее см. в sample_nginx.conf
+
+3. **Проверьте корректность конфигурации:**
+   ```bash
+   sudo nginx -t
+   ```
+
+4. **Перезагрузите Nginx:**
+   ```bash
+   sudo systemctl reload nginx
+   ```
+
+---
+
+## **Установка SSL-сертификата с Certbot**
+
+1. **Установите Certbot:**
+   ```bash
+   sudo snap install --classic certbot
+   ```
+
+2. **Настройте SSL автоматически:**
+   ```bash
+   sudo certbot --nginx
+   ```
+
+    - Введите ваш домен при запросе.
+    - Подтвердите установку сертификата.
+
+3. **Проверьте список сертификатов:**
+   ```bash
+   sudo certbot certificates
+   ```
+
+---
+
+## **Обновление SSL-сертификатов**
+
+Чтобы проверить обновление сертификатов:
+```bash
+sudo certbot renew --dry-run
+```
+
+---
+
+## **Дополнительные команды**
+
+- **Проверить статус Nginx:**
+  ```bash
+  sudo systemctl status nginx
+  ```
+
+- **Перезапустить Nginx:**
+  ```bash
+  sudo systemctl restart nginx
+  ```
