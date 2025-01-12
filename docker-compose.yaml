@@ -27,10 +27,12 @@ services:
     env_file: .env
     volumes:
       - static:/backend_static  # в этой директории - статика admin панели и drf
+      # СТАТИКА DRF СОБИРАЕТСЯ УЖЕ ПОСЛЕ СТАРТА ПРИЛОЖЕНИЯ В GITHUB ACTIONS
     # Какие контейнеры нужно запустить до старта этого контейнера:
     depends_on:
       - db
   # Имя третьего контейнера. Это контейнер с фронтендом
+  # Он просто копирует статику в volume и завершается
   frontend:
     env_file: .env
     build: ./frontend/
