@@ -110,3 +110,9 @@ location / {
       ```
 
 - Эти файлы загружаются через Nginx из `/staticfiles/static/`. 
+
+
+## Github actions
+См. в .github/workflows/main.yaml
+
+Обратить внимание docker compose и Dockerfile для обоих сервисов. Так можно понять, что происходит в main.yaml и почему.
